@@ -1,0 +1,17 @@
+# Binaries
+networkai
+*.exe
+*.test
+*.out
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+
+# AI agent files
+.claude/
+CLAUDE.md
+CLAUDE.local.md
