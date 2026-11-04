@@ -2,97 +2,88 @@ package backend
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"net/http"
-	"time"
-
-	"networkai/config"
 	"networkai/constants"
 
 	"github.com/olivere/elastic/v7"
 )
 
+// a global ESClient
 var ESBackend *ElasticsearchBackend
 
+// Wrap ESClient
 type ElasticsearchBackend struct {
 	client *elastic.Client
 }
 
-const postMapping = `{
-  "mappings": {"properties": {
-    "id": {"type": "keyword"},
-    "user": {"type": "keyword"},
-    "message": {"type": "text"},
-    "url": {"type": "keyword", "index": false},
-    "type": {"type": "keyword", "index": false}
-  }}
-}`
-
-const userMapping = `{
-  "mappings": {"properties": {
-    "username": {"type": "keyword"},
-    "password": {"type": "keyword"},
-    "age": {"type": "long", "index": false},
-    "gender": {"type": "keyword", "index": false}
-  }}
-}`
-
-func InitElasticsearchBackend() error {
-	cfg, err := config.LoadElasticsearchConfig()
+// ========================
+// initialize EsClient, create index
+func InitElasticsearchBackend() {
+	client, err := elastic.NewClient(
+		elastic.SetURL(constants.ES_URL),
+		elastic.SetBasicAuth(constants.ES_USERNAME, constants.ES_PASSWORD))
 	if err != nil {
-		return err
+		panic(err)
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-	backend, err := NewElasticsearchBackend(ctx, cfg)
-	if err != nil {
-		return err
-	}
-	ESBackend = backend
-	fmt.Println("Indexes are created.")
-	return nil
-}
 
-func NewElasticsearchBackend(ctx context.Context, cfg config.ElasticsearchConfig) (*ElasticsearchBackend, error) {
-	client, err := elastic.DialContext(ctx,
-		elastic.SetURL(cfg.URL),
-		elastic.SetBasicAuth(cfg.Username, cfg.Password),
-		elastic.SetSniff(false),
-		elastic.SetHttpClient(&http.Client{Timeout: 10 * time.Second}),
-	)
+	exists, err := client.IndexExists(constants.POST_INDEX).Do(context.Background())
 	if err != nil {
-		return nil, fmt.Errorf("connect to Elasticsearch: %w", err)
+		panic(err)
 	}
-	for _, index := range []struct{ name, mapping string }{
-		{constants.POST_INDEX, postMapping},
-		{constants.USER_INDEX, userMapping},
-	} {
-		exists, err := client.IndexExists(index.name).Do(ctx)
+
+	if !exists {
+		mapping := `{
+           "mappings": {
+               "properties": {
+                   "id":       { "type": "keyword" },
+                   "user":     { "type": "keyword" },
+                   "message":  { "type": "text" },
+                   "url":      { "type": "keyword", "index": false },
+                   "type":     { "type": "keyword", "index": false }
+               }
+           }
+       }`
+		_, err := client.CreateIndex(constants.POST_INDEX).Body(mapping).Do(context.Background())
 		if err != nil {
-			client.Stop()
-			return nil, fmt.Errorf("check index %s: %w", index.name, err)
-		}
-		if exists {
-			continue
-		}
-		if _, err := client.CreateIndex(index.name).Body(index.mapping).Do(ctx); err != nil {
-			client.Stop()
-			return nil, fmt.Errorf("create index %s: %w", index.name, err)
+			panic(err)
 		}
 	}
-	return &ElasticsearchBackend{client: client}, nil
+
+	exists, err = client.IndexExists(constants.USER_INDEX).Do(context.Background())
+	if err != nil {
+		panic(err)
+	}
+
+	if !exists {
+		mapping := `{
+                       "mappings": {
+                               "properties": {
+                                       "username": {"type": "keyword"},
+                                       "password": {"type": "keyword"},
+                                       "age":      {"type": "long", "index": false},
+                                       "gender":   {"type": "keyword", "index": false}
+                               }
+                       }
+               }`
+		_, err = client.CreateIndex(constants.USER_INDEX).Body(mapping).Do(context.Background())
+		if err != nil {
+			panic(err)
+		}
+	}
+	fmt.Println("Indexes are created.")
+
+	ESBackend = &ElasticsearchBackend{client: client}
 }
 
-func (backend *ElasticsearchBackend) Close() {
-	if backend != nil && backend.client != nil {
-		backend.client.Stop()
+func (backend *ElasticsearchBackend) ReadFromES(query elastic.Query, index string) (*elastic.SearchResult, error) {
+	searchResult, err := backend.client.Search().
+		Index(index).
+		Query(query).
+		Pretty(true).
+		Do(context.Background())
+	if err != nil {
+		return nil, err
 	}
-}
 
-func (backend *ElasticsearchBackend) ReadFromES(ctx context.Context, query elastic.Query, index string) (*elastic.SearchResult, error) {
-	if backend == nil || backend.client == nil {
-		return nil, errors.New("Elasticsearch backend is not initialized")
-	}
-	return backend.client.Search().Index(index).Query(query).Do(ctx)
+	return searchResult, nil
 }
