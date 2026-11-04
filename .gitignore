@@ -16,3 +16,10 @@ networkai
 CLAUDE.md
 CLAUDE.local.md
 AGENT*
+
+# Local credentials
+.env
+.env.*
+elasticsearch.env
+
+README*
