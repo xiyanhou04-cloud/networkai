@@ -8,16 +8,14 @@ import (
 	"github.com/olivere/elastic/v7"
 )
 
-// a global ESClient
-var ESBackend *ElasticsearchBackend
+var (
+	ESBackend *ElasticsearchBackend
+)
 
-// Wrap ESClient
 type ElasticsearchBackend struct {
 	client *elastic.Client
 }
 
-// ========================
-// initialize EsClient, create index
 func InitElasticsearchBackend() {
 	client, err := elastic.NewClient(
 		elastic.SetURL(constants.ES_URL),
@@ -33,16 +31,16 @@ func InitElasticsearchBackend() {
 
 	if !exists {
 		mapping := `{
-           "mappings": {
-               "properties": {
-                   "id":       { "type": "keyword" },
-                   "user":     { "type": "keyword" },
-                   "message":  { "type": "text" },
-                   "url":      { "type": "keyword", "index": false },
-                   "type":     { "type": "keyword", "index": false }
+               "mappings": {
+                   "properties": {
+                       "id":       { "type": "keyword" },
+                       "user":     { "type": "keyword" },
+                       "message":  { "type": "text" },
+                       "url":      { "type": "keyword", "index": false },
+                       "type":     { "type": "keyword", "index": false }
+                   }
                }
-           }
-       }`
+           }`
 		_, err := client.CreateIndex(constants.POST_INDEX).Body(mapping).Do(context.Background())
 		if err != nil {
 			panic(err)
@@ -56,15 +54,15 @@ func InitElasticsearchBackend() {
 
 	if !exists {
 		mapping := `{
-                       "mappings": {
-                               "properties": {
-                                       "username": {"type": "keyword"},
-                                       "password": {"type": "keyword"},
-                                       "age":      {"type": "long", "index": false},
-                                       "gender":   {"type": "keyword", "index": false}
-                               }
-                       }
-               }`
+                           "mappings": {
+                                   "properties": {
+                                           "username": {"type": "keyword"},
+                                           "password": {"type": "keyword"},
+                                           "age":      {"type": "long", "index": false},
+                                           "gender":   {"type": "keyword", "index": false}
+                                   }
+                           }
+                   }`
 		_, err = client.CreateIndex(constants.USER_INDEX).Body(mapping).Do(context.Background())
 		if err != nil {
 			panic(err)

@@ -4,6 +4,8 @@ go 1.27.3
 
 require (
 	cloud.google.com/go/storage v1.70.0
+	github.com/auth0/go-jwt-middleware v1.0.1
+	github.com/form3tech-oss/jwt-go v3.2.5+incompatible
 	github.com/gorilla/mux v1.8.1
 	github.com/olivere/elastic/v7 v7.0.32
 	github.com/pborman/uuid v1.2.1

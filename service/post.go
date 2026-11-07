@@ -2,11 +2,10 @@ package service
 
 import (
 	"mime/multipart"
-	"reflect"
-
 	"networkai/backend"
 	"networkai/constants"
 	"networkai/model"
+	"reflect"
 
 	"github.com/olivere/elastic/v7"
 )
